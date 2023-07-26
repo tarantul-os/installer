@@ -1,0 +1,10 @@
+#!/bin/bash
+
+BIN_PATH="."
+
+LANG=$(whiptail --title "TarantulOS Installer" --radiolist "Choose the launguage of the installer" 15 40 2 "EN" "English" ON "RU" "Русский" OFF 3>&1 1>&2 2>&3)
+if [[ $LANG == "EN" ]]; then
+    $BIN_PATH/en_install
+else
+    $BIN_PATH/ru_install	
+fi

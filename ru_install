@@ -1,0 +1,9 @@
+#!/bin/bash
+title="Установщик TarantulOS"
+whiptail --title "$title" --msgbox "Подключитесь к интернету, потом нажмите OK" 7 50 
+clear
+echo "Обнавление базы данных..."
+sudo pacman -Sy
+clear
+#whiptail --title "$title" --radiolist 
+
