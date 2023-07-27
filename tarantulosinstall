@@ -2,9 +2,65 @@
 
 BIN_PATH="."
 
-LANG=$(whiptail --title "TarantulOS Installer" --radiolist "Choose the launguage of the installer" 15 40 2 "EN" "English" ON "RU" "Русский" OFF 3>&1 1>&2 2>&3)
-if [[ $LANG == "EN" ]]; then
-    $BIN_PATH/en_install
-else
-    $BIN_PATH/ru_install	
+whiptail --title "Connect to the internet" --msgbox "Connect to the enternet and press Enter" 8 60
+
+wget --spider --quiet http://example.com
+if [ "$?" != 0 ]; then
+  ./tarantulosinstall
+  exit
 fi
+
+clear
+echo "Updating keyrings..."
+pacman -Sy --needed --noconfirm archlinux-keyring > /dev/null
+partition=$(whiptail --title "Partitioning" --radiolist "Choose how do you want to do partitioning:" 8 70 2 "Manual" "Manual partitioning" ON "format" "Clean the disk and create new partition table" OFF 3>&1 1>&2 2>&3)
+
+#DISK=/dev/$(lsblk -l | awk '{print $1}' | head -3 | tail -1)
+DISK=/dev/sda
+
+if [ "$partition" == "format" ]; then
+	echo "Creating partition table..."
+	parted -s $DISK mklabel gpt
+	echo "Creating EFI partition..."
+	parted -s $DISK mkpart primary fat32 1Mib 261MiB
+	parted -s $DISK set 1 esp on
+	echo "Creating SWAP partition..."
+	parted -s $DISK mkpart primary linux-swap 261Mib 4358MiB
+	echo "Creating linux filesystem partition..."
+	parted -s $DISK mkpart primary ext4 4358Mib 100%
+	echo "Formating EFI partition..."
+	yes | mkfs.fat -F 32 $(echo $DISK)1 > /dev/null
+	echo "Formating SWAP partition..."
+	yes | mkswap $(echo $DISK)2 > /dev/null
+	echo "Formating linux filesystem partition..."
+	yes | mkfs.ext4 $(echo $DISK)3 > /dev/null
+	echo "Mounting partitions..."
+	swapon $(echo $DISK)2
+	mount --mkdir $(echo $DISK)3 /mnt
+	mount --mkdir $(echo $DISK)1 /mnt/boot
+else
+	cfdisk
+fi
+echo "Installing base system..."
+pacstrap -K /mnt linux linux-firmware base networkmanager grub > /dev/null
+echo "Configuring system..."
+genfstab -U /mnt >> /mnt/etc/fstab
+LOGIN=$(whiptail --inputbox "What will be the name of user" 8 39  --title "USER" 3>&1 1>&2 2>&3)
+PASSWD=$(whiptail --passwordbox "Choose the password for the user" 8 78 --title "USER" 3>&1 1>&2 2>&3)
+echo """              
+ln -sf /usr/share/zoneinfo/Europe/Moscow/ /etc/localtime
+hwclock --systohc
+echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen
+locale-gen
+echo 'LANG=en_US.UTF-8' > /etc/localtime.conf
+echo 'tarantulos' > /etc/hostname
+mkinitcpio -P 
+echo -e '$PASSWD\n$PASSWD\n' | passwd
+useradd -G wheel -m $LOGIN
+echo -e '$PASSWD\n$PASSWD\n' | passwd $LOGIN
+echo '%wheel ALL=(ALL:ALL) ALL' >> /etc/sudoers
+systemctl enable NetworkManager
+""" | sudo arch-chroot /mnt > /dev/null
+echo "Rebooting in 5 seconds..."
+sleep 5
+sudo reboot
