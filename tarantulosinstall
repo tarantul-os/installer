@@ -13,8 +13,8 @@ echo "Updating keyrings..."
 pacman -Sy --needed --noconfirm archlinux-keyring
 partition=$(whiptail --title "Partitioning" --radiolist "Choose how do you want to do partitioning:" 8 70 2 "Manual" "Manual partitioning" ON "format" "Clean the disk and create new partition table" OFF 3>&1 1>&2 2>&3)
 
-#DISK=/dev/$(lsblk -l | awk '{print $1}' | head -3 | tail -1)
-DISK=/dev/sda
+DISK=/dev/$(lsblk -l | awk '{print $1}' | head -3 | tail -1)
+#DISK=/dev/sda
 
 if [ "$partition" == "format" ]; then
 	echo "Creating partition table..."
@@ -40,7 +40,7 @@ else
 	cfdisk
 fi
 echo "Installing base system..."
-pacstrap -K /mnt linux linux-firmware base networkmanager grub efibootmgr
+pacstrap -K /mnt linux linux-firmware base networkmanager grub efibootmgr sudo
 echo "Configuring system..."
 genfstab -U /mnt >> /mnt/etc/fstab
 LOGIN=$(whiptail --inputbox "What will be the name of user" 8 39  --title "USER" 3>&1 1>&2 2>&3)
